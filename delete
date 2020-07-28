@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+
+set -e
+shopt -s extglob
+
+TFVARS="$1"
+
+MANIFEST_PATH=./manifests/ingress-nginx
+KUARD_DEMO_PATH=./test
+
+testpath() {
+	local path=$1
+	if ! test -d $path
+	then echo "!!! Not found: ${path}" && exit 1
+	fi
+}
+
+testpath $MANIFEST_PATH
+testpath $KUARD_DEMO_PATH
+
+# printf "\nDelete kuard TLS demo resources first\n"
+kubectl delete --recursive -f $KUARD_DEMO_PATH&  
+
+# printf "\nDeleting ingress-nginx global cluster ingress.\n"
+for i in `seq 1 10`; do \
+kubectl delete --recursive -f $MANIFEST_PATH && break || \
+sleep 10; \
+done; \

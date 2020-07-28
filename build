@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+
+# ref: https://kubernetes.github.io/ingress-nginx/deploy/#aws
+
+TFVARS="$1"
+
+# ref: https://github.com/kubernetes/ingress-nginx
+# Notes:
+#  - in the ingress-nginx project naming is inconsistent (similar to the helm chart being called nginx-ingress)
+#  - the versions in the kube manifest files dont match the version tags
+# i.e.: ref: https://github.com/kubernetes/ingress-nginx/blob/nginx-0.25.1/docs/deploy/index.md#aws 
+# note in the 'nginx-0.25.1' tag version, the deployment uses nginx-ingress-controller:0.25.0
+#INGRESS_NGINX_K8S_CONTROLLER=$(awk -F "= " '/ingress_nginx_k8s_controller/ {print $2}' ${TFVARS} | sed 's/"//g')
+#INGRESS_NGINX_K8S_WILDCARD_CERT_ARN=$(awk -F "= " '/ingress_nginx_k8s_wildcard_cert_arn/ {print $2}' ${TFVARS} | sed 's/"//g')
+# the above vars fetching s like this for our ENV using a global tfvars file for IAC, so you can omit and use plain old shell vars
+INGRESS_NGINX_K8S_CONTROLLER="0.28.0"
+INGRESS_NGINX_K8S_WILDCARD_CERT_ARN="arn:aws:acm:us-west-2:001234567890:certificate/your-aws-cert-arn-goes-here"
+
+MANIFEST_PATH=./manifests/ingress-nginx
+
+echo $INGRESS_NGINX_K8S_CONTROLLER
+echo $INGRESS_NGINX_K8S_WILDCARD_CERT_ARN
+
+rm -rf $MANIFEST_PATH && mkdir $MANIFEST_PATH
+
+# update our ingress-nginx controller image version in the 'mandatory' manifest file.
+# ref: https://kubernetes.github.io/ingress-nginx/deploy/#prerequisite-generic-deployment-command
+#      https://raw.githubusercontent.com/kubernetes/ingress-nginx/nginx-0.28.0/deploy/static/mandatory.yaml
+sed -e "s#__INGRESS_NGINX_K8S_CONTROLLER__#${INGRESS_NGINX_K8S_CONTROLLER}#g" ./templates/00-mandatory.yaml.tpl > "$MANIFEST_PATH/00-mandatory.yaml"
+
+# update our AWS cert ARN in the 'service-l7' manifest file.
+sed -e "s#__INGRESS_NGINX_K8S_WILDCARD_CERT_ARN__#${INGRESS_NGINX_K8S_WILDCARD_CERT_ARN}#g" ./templates/01-service-l7.yaml.tpl > "$MANIFEST_PATH/01-service-l7.yaml"
+
+# no mods needed for the 'patch-configmap-l7' file
+cp ./templates/02-patch-configmap-l7.yaml.tpl "$MANIFEST_PATH/02-patch-configmap-l7.yaml"

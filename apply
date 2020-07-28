@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+set -e
+shopt -s extglob
+
+TFVARS="$1"
+
+MANIFEST_PATH=./manifests/ingress-nginx
+KUARD_DEMO_PATH=./test
+
+
+testpath() {
+	local path=$1
+	if ! test -d $path
+	then echo "!!! Not found: ${path}, did you forget to run k8s-build?" && exit 1
+	fi
+}
+
+testpath $MANIFEST_PATH
+
+for i in `seq 1 10`; do \
+kubectl apply --recursive -f $MANIFEST_PATH && break || \
+sleep 10; \
+done; \
+
+# deploy 'kuard' our TLS valiation service
+printf "\nSleeping for 5 then deploying kuard TLS demo 'https://kuard.dev.mycompany.com'"
+printf "\nAllow a few minutes for External-DNS Route53 to update the requisite A/ALIAS for kuard.dev.mycompany.com\n\n"
+sleep 5
+kubectl apply -f $KUARD_DEMO_PATH/kuard-test-ingress.yaml
+
+
